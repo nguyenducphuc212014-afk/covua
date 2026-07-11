@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Demo Quản lý giải đấu cờ vua</title>
+  <style>
+    :root{--blue:#2563eb;--light:#eff6ff;--text:#0f172a;--muted:#64748b;--border:#dbe3ef;--green:#16a34a;--red:#dc2626;--bg:#f8fafc}
+    *{box-sizing:border-box} body{font-family:Arial,Helvetica,sans-serif;margin:0;background:var(--bg);color:var(--text)}
+    header{background:linear-gradient(135deg,#1d4ed8,#38bdf8);color:white;padding:22px 28px} header h1{margin:0;font-size:26px} header p{margin:7px 0 0;opacity:.95}
+    .wrap{max-width:1180px;margin:22px auto;padding:0 16px}
+    .tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}.tab{border:1px solid var(--border);background:white;padding:10px 14px;border-radius:12px;cursor:pointer;font-weight:700}.tab.active{background:var(--blue);color:white;border-color:var(--blue)}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.card{background:white;border:1px solid var(--border);border-radius:16px;padding:16px;box-shadow:0 10px 22px rgba(15,23,42,.04)}
+    .card h2{font-size:19px;margin:0 0 12px}.row{display:flex;gap:10px;flex-wrap:wrap;margin:9px 0}.field{display:flex;flex-direction:column;gap:6px;flex:1;min-width:180px}label{font-weight:700;font-size:13px;color:#334155}
+    input,select,textarea{border:1px solid var(--border);border-radius:10px;padding:10px;font-size:14px;background:white}button{border:0;border-radius:10px;padding:10px 13px;font-weight:700;cursor:pointer;background:var(--blue);color:white}button.secondary{background:#e2e8f0;color:#0f172a}button.danger{background:var(--red)}button.good{background:var(--green)}
+    table{width:100%;border-collapse:collapse;margin-top:10px;background:white;border-radius:12px;overflow:hidden}th,td{border-bottom:1px solid var(--border);padding:9px;text-align:left;font-size:14px}th{background:var(--light);color:#1e3a8a}.small{color:var(--muted);font-size:13px}.hidden{display:none}.pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#e0f2fe;color:#075985;font-weight:700;font-size:12px}.score{width:70px}.empty{padding:18px;color:var(--muted);text-align:center;background:#f8fafc;border-radius:12px}.notice{background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:10px 12px;margin-bottom:12px;color:#92400e}.checklist{max-height:280px;overflow:auto;border:1px solid var(--border);border-radius:12px;padding:8px}.checkitem{display:flex;align-items:center;gap:8px;padding:7px;border-bottom:1px solid #f1f5f9}.checkitem:last-child{border-bottom:0}@media(max-width:850px){.grid{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<header>
+  <h1>Quản lý giải đấu cờ vua</h1>
+  <p>Demo chạy thử: kỳ thủ, giải đấu, tự sinh cặp, nhập kết quả 3-2, bảng xếp hạng.</p>
+</header>
+<div class="wrap">
+  <div class="notice">Đây là bản demo web để xem trước chức năng. Bản chính C# WinForms + SQLite nằm trong file project đã gửi.</div>
+  <div class="tabs">
+    <button class="tab active" onclick="showTab('players')">1. Kỳ thủ</button>
+    <button class="tab" onclick="showTab('tournaments')">2. Giải đấu</button>
+    <button class="tab" onclick="showTab('matches')">3. Cặp đấu</button>
+    <button class="tab" onclick="showTab('standings')">4. Xếp hạng</button>
+  </div>
+
+  <section id="players" class="page">
+    <div class="grid">
+      <div class="card">
+        <h2>Thêm kỳ thủ</h2>
+        <div class="row"><div class="field"><label>Họ tên</label><input id="playerName" placeholder="Ví dụ: Nam" /></div><div class="field"><label>Ngày sinh</label><input id="playerDob" type="date" /></div></div>
+        <div class="row"><button onclick="addPlayer()">Thêm kỳ thủ</button><button class="secondary" onclick="seedPlayers()">Tạo dữ liệu mẫu</button><button class="danger" onclick="clearAll()">Xóa toàn bộ demo</button></div>
+        <p class="small">Tuổi dùng để xét xếp hạng: bằng điểm thì ưu tiên kỳ thủ ít tuổi hơn.</p>
+      </div>
+      <div class="card">
+        <h2>Danh sách kỳ thủ</h2><div id="playersTable"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="tournaments" class="page hidden">
+    <div class="grid">
+      <div class="card">
+        <h2>Tạo giải đấu</h2>
+        <div class="row"><div class="field"><label>Tên giải</label><input id="tournamentName" placeholder="Ví dụ: Giải tháng 7" /></div></div>
+        <div class="field"><label>Chọn kỳ thủ tham gia</label><div id="playerChecks" class="checklist"></div></div>
+        <div class="row"><button onclick="createTournament()">Tạo giải và sinh cặp</button></div>
+        <p class="small">Mỗi đôi gặp nhau 1 lượt, nhưng kết quả nhập dạng tổng 5 ván, ví dụ: 3-2.</p>
+      </div>
+      <div class="card">
+        <h2>Danh sách giải</h2><div id="tournamentsTable"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="matches" class="page hidden">
+    <div class="card">
+      <h2>Nhập kết quả</h2>
+      <div class="row"><div class="field"><label>Chọn giải</label><select id="matchTournament" onchange="renderMatches()"></select></div></div>
+      <p class="small">Nhập kết quả dạng <b>3-2</b>. Để trống nghĩa là chưa đấu. Điểm tính theo số ván thắng trong cặp đấu.</p>
+      <div id="matchesTable"></div>
+    </div>
+  </section>
+
+  <section id="standings" class="page hidden">
+    <div class="card">
+      <h2>Bảng xếp hạng</h2>
+      <div class="row"><div class="field"><label>Chọn giải</label><select id="standingTournament" onchange="renderStandings()"></select></div></div>
+      <div id="standingsTable"></div>
+    </div>
+  </section>
+</div>
+<script>
+const STORE='chess_demo_v1';
+let db=load();
+function load(){try{return JSON.parse(localStorage.getItem(STORE))||{players:[],tournaments:[],matches:[]}}catch(e){return{players:[],tournaments:[],matches:[]}}}
+function save(){localStorage.setItem(STORE,JSON.stringify(db));renderAll()}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,8)}
+function esc(s){return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function ageMs(dob){return new Date()-new Date(dob)}
+function showTab(id){document.querySelectorAll('.page').forEach(x=>x.classList.add('hidden'));document.getElementById(id).classList.remove('hidden');document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));event.target.classList.add('active');renderAll()}
+function addPlayer(){let name=playerName.value.trim(), dob=playerDob.value;if(!name||!dob){alert('Nhập đủ họ tên và ngày sinh');return}db.players.push({id:uid(),name,dob});playerName.value='';playerDob.value='';save()}
+function deletePlayer(id){if(!confirm('Xóa kỳ thủ này?'))return;db.players=db.players.filter(p=>p.id!==id);db.tournaments.forEach(t=>t.playerIds=t.playerIds.filter(x=>x!==id));db.matches=db.matches.filter(m=>m.a!==id&&m.b!==id);save()}
+function seedPlayers(){db.players=[{id:'p1',name:'Nam',dob:'2014-03-12'},{id:'p2',name:'Hùng',dob:'2013-11-08'},{id:'p3',name:'An',dob:'2015-05-20'},{id:'p4',name:'Bình',dob:'2014-09-01'},{id:'p5',name:'Minh',dob:'2015-01-17'},{id:'p6',name:'Khánh',dob:'2013-06-30'}];save()}
+function clearAll(){if(confirm('Xóa toàn bộ dữ liệu demo?')){db={players:[],tournaments:[],matches:[]};save()}}
+function playerNameById(id){return (db.players.find(p=>p.id===id)||{}).name||'?' }
+function playerDobById(id){return (db.players.find(p=>p.id===id)||{}).dob||'1900-01-01'}
+function createTournament(){let name=tournamentName.value.trim();let ids=[...document.querySelectorAll('.pcheck:checked')].map(x=>x.value);if(!name){alert('Nhập tên giải');return}if(ids.length<2){alert('Cần ít nhất 2 kỳ thủ');return}let tid=uid();db.tournaments.push({id:tid,name,playerIds:ids,created:new Date().toISOString()});for(let i=0;i<ids.length;i++){for(let j=i+1;j<ids.length;j++){db.matches.push({id:uid(),tournamentId:tid,a:ids[i],b:ids[j],score:''})}}tournamentName.value='';save();alert('Đã tạo giải và sinh '+(ids.length*(ids.length-1)/2)+' cặp đấu')}
+function deleteTournament(id){if(!confirm('Xóa giải và cặp đấu?'))return;db.tournaments=db.tournaments.filter(t=>t.id!==id);db.matches=db.matches.filter(m=>m.tournamentId!==id);save()}
+function setScore(mid,val){let m=db.matches.find(x=>x.id===mid);if(!m)return;val=val.trim();if(val && !/^\d+\s*-\s*\d+$/.test(val)){alert('Kết quả phải dạng 3-2 hoặc để trống');renderMatches();return}m.score=val.replace(/\s+/g,'');localStorage.setItem(STORE,JSON.stringify(db));renderStandings()}
+function parseScore(s){if(!s)return null;let a=s.split('-').map(Number);if(a.length!==2||a.some(Number.isNaN))return null;return {a:a[0],b:a[1]}}
+function computeStandings(tid){let t=db.tournaments.find(x=>x.id===tid);if(!t)return[];let rows=t.playerIds.map(id=>({id,name:playerNameById(id),dob:playerDobById(id),played:0,win:0,draw:0,loss:0,points:0,for:0,against:0}));let map=Object.fromEntries(rows.map(r=>[r.id,r]));db.matches.filter(m=>m.tournamentId===tid).forEach(m=>{let s=parseScore(m.score);if(!s)return;let A=map[m.a],B=map[m.b];if(!A||!B)return;A.played++;B.played++;A.for+=s.a;A.against+=s.b;B.for+=s.b;B.against+=s.a;A.points+=s.a;B.points+=s.b;if(s.a>s.b){A.win++;B.loss++}else if(s.a<s.b){B.win++;A.loss++}else{A.draw++;B.draw++}});
+function headToHead(x,y){let m=db.matches.find(m=>m.tournamentId===tid&&((m.a===x.id&&m.b===y.id)||(m.a===y.id&&m.b===x.id)));let s=m?parseScore(m.score):null;if(!s)return 0;let xs=m.a===x.id?s.a:s.b, ys=m.a===x.id?s.b:s.a;return ys-xs}
+rows.sort((x,y)=> (y.points-x.points) || (new Date(y.dob)-new Date(x.dob)) || headToHead(x,y) || ((y.for-y.against)-(x.for-x.against)) || x.name.localeCompare(y.name,'vi'));
+return rows}
+function renderPlayers(){if(!db.players.length){playersTable.innerHTML='<div class="empty">Chưa có kỳ thủ</div>';return}playersTable.innerHTML='<table><tr><th>STT</th><th>Họ tên</th><th>Ngày sinh</th><th></th></tr>'+db.players.map((p,i)=>`<tr><td>${i+1}</td><td>${esc(p.name)}</td><td>${p.dob}</td><td><button class="danger" onclick="deletePlayer('${p.id}')">Xóa</button></td></tr>`).join('')+'</table>'}
+function renderChecks(){if(!db.players.length){playerChecks.innerHTML='<div class="empty">Chưa có kỳ thủ để chọn</div>';return}playerChecks.innerHTML=db.players.map(p=>`<label class="checkitem"><input class="pcheck" type="checkbox" value="${p.id}"> ${esc(p.name)} <span class="small">(${p.dob})</span></label>`).join('')}
+function renderTournaments(){if(!db.tournaments.length){tournamentsTable.innerHTML='<div class="empty">Chưa có giải đấu</div>'}else{tournamentsTable.innerHTML='<table><tr><th>Tên giải</th><th>Số kỳ thủ</th><th>Số cặp</th><th></th></tr>'+db.tournaments.map(t=>`<tr><td>${esc(t.name)}</td><td>${t.playerIds.length}</td><td>${db.matches.filter(m=>m.tournamentId===t.id).length}</td><td><button class="danger" onclick="deleteTournament('${t.id}')">Xóa</button></td></tr>`).join('')+'</table>'}
+let opts=db.tournaments.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');matchTournament.innerHTML=opts;standingTournament.innerHTML=opts}
+function renderMatches(){let tid=matchTournament.value||(db.tournaments[0]||{}).id;if(!tid){matchesTable.innerHTML='<div class="empty">Chưa có giải đấu</div>';return}matchTournament.value=tid;let arr=db.matches.filter(m=>m.tournamentId===tid);matchesTable.innerHTML='<table><tr><th>STT</th><th>Kỳ thủ 1</th><th>Kỳ thủ 2</th><th>Kết quả</th><th>Trạng thái</th></tr>'+arr.map((m,i)=>`<tr><td>${i+1}</td><td>${esc(playerNameById(m.a))}</td><td>${esc(playerNameById(m.b))}</td><td><input class="score" value="${esc(m.score)}" placeholder="3-2" onchange="setScore('${m.id}',this.value)"></td><td>${m.score?'<span class="pill">Đã đấu</span>':'<span class="small">Chưa đấu</span>'}</td></tr>`).join('')+'</table>'}
+function renderStandings(){let tid=standingTournament.value||(db.tournaments[0]||{}).id;if(!tid){standingsTable.innerHTML='<div class="empty">Chưa có giải đấu</div>';return}standingTournament.value=tid;let rows=computeStandings(tid);standingsTable.innerHTML='<table><tr><th>Hạng</th><th>Kỳ thủ</th><th>Ngày sinh</th><th>Đã đấu</th><th>Thắng</th><th>Hòa</th><th>Thua</th><th>Điểm</th><th>HS</th></tr>'+rows.map((r,i)=>`<tr><td><b>${i+1}</b></td><td>${esc(r.name)}</td><td>${r.dob}</td><td>${r.played}</td><td>${r.win}</td><td>${r.draw}</td><td>${r.loss}</td><td><b>${r.points}</b></td><td>${r.for-r.against}</td></tr>`).join('')+'</table><p class="small">Thứ tự: điểm cao hơn → ít tuổi hơn → đối đầu → hiệu số.</p>'}
+function renderAll(){renderPlayers();renderChecks();let mv=matchTournament.value, sv=standingTournament.value;renderTournaments();if(mv)matchTournament.value=mv;if(sv)standingTournament.value=sv;renderMatches();renderStandings()}
+renderAll();
+</script>
+</body>
+</html>
